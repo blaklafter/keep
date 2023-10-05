@@ -19,9 +19,15 @@ interface Props {
   data: Alert[];
   groupBy?: string;
   pushed?: boolean;
+  workflows?: any[];
 }
 
-export function AlertTable({ data, groupBy, pushed = false }: Props) {
+export function AlertTable({
+  data,
+  groupBy,
+  pushed = false,
+  workflows,
+}: Props) {
   const [selectedAlertHistory, setSelectedAlertHistory] = useState<Alert[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -43,6 +49,11 @@ export function AlertTable({ data, groupBy, pushed = false }: Props) {
       (key) => groupedByData[key][0]
     );
   }
+  // Sort by last received
+  aggregatedData = aggregatedData.sort(
+    (a, b) =>
+      new Date(a.lastReceived).getTime() - new Date(b.lastReceived).getTime()
+  );
 
   const closeModal = (): any => setIsOpen(false);
   const openModal = (alert: Alert): any => {
@@ -66,7 +77,7 @@ export function AlertTable({ data, groupBy, pushed = false }: Props) {
       <Table>
         <TableHead>
           <TableRow>
-            {pushed && <TableHeaderCell>{/** Menu */}</TableHeaderCell>}
+            {<TableHeaderCell>{/** Menu */}</TableHeaderCell>}
             {Object.keys(AlertTableKeys).map((key) => (
               <TableHeaderCell key={key}>
                 <div className="flex items-center">
@@ -90,6 +101,7 @@ export function AlertTable({ data, groupBy, pushed = false }: Props) {
           groupedByData={groupedByData}
           openModal={openModal}
           pushed={pushed}
+          workflows={workflows}
         />
       </Table>
       <AlertTransition

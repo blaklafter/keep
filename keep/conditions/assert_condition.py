@@ -1,4 +1,5 @@
 import chevron
+from asteval import Interpreter
 
 from keep.conditions.base_condition import BaseCondition
 
@@ -26,13 +27,20 @@ class AssertCondition(BaseCondition):
             # we need to encode/decode the string to make sure eval
             # will be able to parse characters such as \n
             compare_value = compare_value.encode("unicode_escape").decode("utf-8")
-            assert eval(compare_value)
+            # if " 'A' == 'A' ", then we should run the action (so condition is true)
+            aeval = Interpreter()
+            assert not aeval(compare_value)
             self.logger.debug(f"Asserted {compare_value}")
             return False
         # if the assertion failed, an action should be done
         except AssertionError:
             self.logger.debug(f"Failed asserting {compare_value}")
             return True
+        except SyntaxError:
+            self.logger.debug(f"Failed asserting {compare_value}")
+            raise SyntaxError(
+                f"AssertCondition failed - couldn't parse {compare_value}"
+            )
 
     def get_compare_value(self):
         """Get the value to compare. The actual value from the step output.

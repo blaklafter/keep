@@ -4,6 +4,7 @@ import logging
 import os
 
 import click
+from pympler.asizeof import asizeof
 from starlette_context import context
 
 from keep.api.logging import WorkflowLoggerAdapter
@@ -14,18 +15,18 @@ class ContextManager:
     STATE_FILE = "keepstate.json"
 
     def __init__(
-        self, tenant_id, workflow_id, workflow_execution_id=None, load_state=True
+        self, tenant_id, workflow_id=None, workflow_execution_id=None, load_state=True
     ):
         self.logger = logging.getLogger(__name__)
         self.logger_adapter = WorkflowLoggerAdapter(
-            self.logger, tenant_id, workflow_id, workflow_execution_id
+            self.logger, self, tenant_id, workflow_id, workflow_execution_id
         )
         self.workflow_id = workflow_id
         self.tenant_id = tenant_id
         self.storage_manager = StorageManagerFactory.get_file_manager()
         self.state_file = os.environ.get("KEEP_STATE_FILE") or self.STATE_FILE
         self.steps_context = {}
-        self.actions_context = {}
+        self.steps_context_size = 0
         self.providers_context = {}
         self.event_context = {}
         self.foreach_context = {
@@ -58,7 +59,9 @@ class ContextManager:
     def get_workflow_id(self):
         return self.workflow_id
 
-    def get_full_context(self, exclude_state=False):
+    def get_full_context(
+        self, exclude_state=False, exclude_providers=False, exclude_env=False
+    ):
         """
         Gets full context on the workflows
 
@@ -80,17 +83,20 @@ class ContextManager:
                             anyway, this should be refactored to something more structured
         """
         full_context = {
-            "providers": self.providers_context,
             "steps": self.steps_context,
-            "actions": self.actions_context,
             "foreach": self.foreach_context,
             "event": self.event_context,
             "alert": self.event_context,  # this is an alias so workflows will be able to use alert.source
-            "env": os.environ,
         }
+
+        if not exclude_providers:
+            full_context["providers"] = self.providers_context
 
         if not exclude_state:
             full_context["state"] = self.state
+
+        if not exclude_env:
+            full_context["env"] = os.environ
 
         full_context.update(self.aliases)
         return full_context
@@ -121,14 +127,14 @@ class ContextManager:
             condition_alias (_type_, optional): _description_. Defaults to None.
             value (_type_): the raw value which the condition was compared to. this is relevant only for foreach conditions
         """
-        if action_id not in self.actions_context:
-            self.actions_context[action_id] = {"conditions": {}, "results": {}}
-        if "conditions" not in self.actions_context[action_id]:
-            self.actions_context[action_id]["conditions"] = {condition_name: []}
-        if condition_name not in self.actions_context[action_id]["conditions"]:
-            self.actions_context[action_id]["conditions"][condition_name] = []
+        if action_id not in self.steps_context:
+            self.steps_context[action_id] = {"conditions": {}, "results": {}}
+        if "conditions" not in self.steps_context[action_id]:
+            self.steps_context[action_id]["conditions"] = {condition_name: []}
+        if condition_name not in self.steps_context[action_id]["conditions"]:
+            self.steps_context[action_id]["conditions"][condition_name] = []
 
-        self.actions_context[action_id]["conditions"][condition_name].append(
+        self.steps_context[action_id]["conditions"][condition_name].append(
             {
                 "value": value,
                 "compare_value": compare_value,
@@ -163,11 +169,14 @@ class ContextManager:
             self.steps_context[step_id]["results"] = results
         # this is an alias to the current step output
         self.steps_context["this"] = self.steps_context[step_id]
+        self.steps_context_size = asizeof(self.steps_context)
 
     def __load_state(self):
         try:
             self.state = json.loads(
-                self.storage_manager.get_file(self.tenant_id, self.state_file)
+                self.storage_manager.get_file(
+                    self.tenant_id, self.state_file, create_if_not_exist=True
+                )
             )
         except Exception as exc:
             self.logger.warning("Failed to load state file, using empty state")

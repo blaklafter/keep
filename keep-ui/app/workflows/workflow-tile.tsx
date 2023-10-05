@@ -7,7 +7,7 @@ import Image from "next/image";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import WorkflowMenu from "./workflow-menu";
-import Loading from '../loading';
+import Loading from "../loading";
 import { Trigger, Provider } from "./models";
 import {
   Button,
@@ -32,7 +32,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import yaml from 'js-yaml';
+import yaml from "js-yaml";
 
 function WorkflowMenuSection({
   onDelete,
@@ -50,10 +50,14 @@ function WorkflowMenuSection({
   workflow: Workflow;
 }) {
   // Determine if all providers are installed
-  const allProvidersInstalled = workflow.providers.every(provider => provider.installed);
+  const allProvidersInstalled = workflow.providers.every(
+    (provider) => provider.installed
+  );
 
   // Check if there is a manual trigger
-  const hasManualTrigger = workflow.triggers.some(trigger => trigger.type === 'manual');  // Replace 'manual' with the actual value that represents a manual trigger in your data
+  const hasManualTrigger = workflow.triggers.some(
+    (trigger) => trigger.type === "manual"
+  ); // Replace 'manual' with the actual value that represents a manual trigger in your data
 
   return (
     <WorkflowMenu
@@ -81,7 +85,7 @@ function TriggerTile({ trigger }: { trigger: Trigger }) {
       {trigger.type === "alert" && (
         <span className="text-sm text-right">
           {trigger.filters &&
-            trigger.filters.map((filter, index) => (
+            trigger.filters.map((filter) => (
               <>
                 {filter.key} = {filter.value}
                 <br />
@@ -159,7 +163,7 @@ function ProviderTile({
 function WorkflowTile({ workflow }: { workflow: Workflow }) {
   // Create a set to keep track of unique providers
   const apiUrl = getApiURL();
-  const { data: session, status, update } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [openPanel, setOpenPanel] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<FullProvider | null>(
@@ -169,7 +173,7 @@ function WorkflowTile({ workflow }: { workflow: Workflow }) {
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isRunning, setIsRunning] = useState(false);
 
-  const { providers, installedProviders, error } = useFetchProviders();
+  const { providers } = useFetchProviders();
 
   const handleConnectProvider = (provider: FullProvider) => {
     setSelectedProvider(provider);
@@ -251,14 +255,14 @@ function WorkflowTile({ workflow }: { workflow: Workflow }) {
       const workflowYAML = workflow.workflow_raw;
 
       // Create a Blob object representing the data as a YAML file
-      const blob = new Blob([workflowYAML], { type: 'text/yaml' });
+      const blob = new Blob([workflowYAML], { type: "text/yaml" });
 
       // Create an anchor element with a URL object created from the Blob
       const url = window.URL.createObjectURL(blob);
 
       // Create a "hidden" anchor tag with the download attribute and click it
-      const a = document.createElement('a');
-      a.style.display = 'none';
+      const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
       a.download = `${workflow.workflow_raw_id}.yaml`; // The file will be named after the workflow's id
       document.body.appendChild(a);
@@ -271,18 +275,13 @@ function WorkflowTile({ workflow }: { workflow: Workflow }) {
     }
   };
 
-
   const handleViewClick = async () => {
     router.push(`/workflows/${workflow.id}`);
   };
 
   const handleBuilderClick = async () => {
-    router.push(`/builder/${workflow.id}`);
+    router.push(`/workflows/builder/${workflow.id}`);
   };
-
-  const hasManualTrigger = workflow.triggers.some(
-    (trigger) => trigger.type === "manual"
-  );
 
   const workflowProvidersMap = new Map(
     workflow.providers.map((p) => [p.type, p])
@@ -317,10 +316,10 @@ function WorkflowTile({ workflow }: { workflow: Workflow }) {
     <div className="tile-basis mt-2.5">
       {isRunning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <Loading />
-      </div>
+          <Loading />
+        </div>
       )}
-      <Card >
+      <Card>
         <div className="flex w-full justify-between items-center h-14">
           <Title>{workflow.description}</Title>
           {WorkflowMenuSection({
@@ -411,6 +410,7 @@ function WorkflowTile({ workflow }: { workflow: Workflow }) {
               onFormChange={handleFormChange}
               onConnectChange={handleConnecting}
               closeModal={handleCloseModal}
+              installedProvidersMode={selectedProvider.installed}
               isProviderNameDisabled={true}
             />
           )}
